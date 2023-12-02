@@ -40,7 +40,7 @@ CREATE TABLE AppSchema.Store (
 CREATE TABLE AppSchema.StoreProduct (
     StoreId INT FOREIGN KEY REFERENCES AppSchema.Store(StoreId),
     ProductId INT FOREIGN KEY REFERENCES AppSchema.Product(ProductId),
-    ProductAmount INT,
+    ProductAmount INT DEFAULT 0,
     CONSTRAINT PK_Store_Product PRIMARY KEY (StoreId, ProductId)
 );
 GO
