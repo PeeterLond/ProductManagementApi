@@ -6,6 +6,6 @@ namespace ProductManagementApi.Dtos {
         
         public int ParentGroupId { get; set; }
         public string ParentGroupName { get; set; } = string.Empty;
-        public List<SubGroup> SubGroups { get; set; } = new List<SubGroup>();
+        public List<SubGroupForShowDto> SubGroups { get; set; } = new List<SubGroupForShowDto>();
     }
 }

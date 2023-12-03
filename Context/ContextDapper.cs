@@ -38,7 +38,10 @@ namespace ProductManagementApi.Context {
             return connection.Execute(sql, param);
         }
 
-
+        public int ExecuteSpWithParams(string storedProcedure, DynamicParameters parameters) {
+            IDbConnection connection = GetConnection();
+            return connection.Execute(storedProcedure, parameters, commandType: CommandType.StoredProcedure);
+        }
 
         private IDbConnection GetConnection() {
             return new SqlConnection(_config.GetConnectionString("DefaultConnection"));

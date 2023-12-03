@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
-using ProductManagementApi.Context;
 using ProductManagementApi.Dtos;
 using ProductManagementApi.Service;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ProductManagementApi.Controller {
 
@@ -16,10 +16,11 @@ namespace ProductManagementApi.Controller {
         }
 
         [HttpGet]
+        [SwaggerOperation(
+            Summary = "Get all available product groups and their subgroups."
+        )]
         public IEnumerable<GroupForShowDto> GetGroups() {
             return _groupService.GetAllGroups();
         }
-
-
     }
 }

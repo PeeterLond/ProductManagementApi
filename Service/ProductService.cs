@@ -1,122 +1,93 @@
 using System.Data;
-using AutoMapper;
 using Dapper;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.AspNetCore.Mvc;
 using ProductManagementApi.Context;
 using ProductManagementApi.Dtos;
-using ProductManagementApi.Entities;
 
 namespace ProductManagementApi.Service {
 
     public class ProductService {
 
         private ContextDapper _dapper;
-        private IMapper _mapper;
 
         public ProductService(IConfiguration config) {
             
             _dapper = new ContextDapper(config);
-            _mapper = new Mapper(new MapperConfiguration(cfg => {
-                cfg.CreateMap<Product, ProductForShowDto>();
-            }));
         }
 
         public IEnumerable<ProductForShowDto> GetAllProducts() {
-            string sql = "SELECT * FROM AppSchema.Product";
-            IEnumerable<Product> products = _dapper.FindAll<Product>(sql);
-            List<ProductForShowDto> productsForShow = new List<ProductForShowDto>();
+            string sqlForProducts = "EXEC AppSchema.spProduct_Get";
+            IEnumerable<ProductForShowDto> products = _dapper.FindAll<ProductForShowDto>(sqlForProducts);
 
-            foreach (Product product in products){
-                ProductForShowDto productForShow = _mapper.Map<ProductForShowDto>(product);
-
+            foreach (ProductForShowDto product in products){
                 DynamicParameters dynamicParams = new DynamicParameters();
-                dynamicParams.Add("@SubGroupId", product.SubGroupId, DbType.Int32);
-                string sqlForSubgroup = @"SELECT SubGroupName FROM AppSchema.SubGroup 
-                    WHERE SubGroupId = @SubGroupId";
-                string subGroupName = _dapper.FindSingleWithParams<string>(sqlForSubgroup, dynamicParams);
-                
-                DynamicParameters dynamicParams2 = new DynamicParameters();
-                dynamicParams2.Add("@ProductId", product.ProductId, DbType.Int32);
-                string sqlForStoreProducts = @"SELECT * FROM AppSchema.StoreProduct 
-                    WHERE ProductId = @ProductId";
-                IEnumerable<StoreProduct> storeProducts =_dapper.FindAllWithParams<StoreProduct>(sqlForStoreProducts, dynamicParams2);
-                
-                List<Store> stores = new List<Store>();
-                foreach (StoreProduct storeProduct in storeProducts){
-                    DynamicParameters dynamicParams3 = new DynamicParameters();
-                    dynamicParams3.Add("@StoreId", storeProduct.StoreId, DbType.Int32);
-                    string sqlForStores = "SELECT * FROM AppSchema.Store WHERE StoreId = @StoreId";
-                    Store store = _dapper.FindSingleWithParams<Store>(sqlForStores, dynamicParams3);
-                    stores.Add(store);
-                }
-                
-                productForShow.SubGroupName = subGroupName;
-                productForShow.Stores = stores;
-                productsForShow.Add(productForShow);
+                dynamicParams.Add("@ProductIdParam", product.ProductId, DbType.Int32);
+                string sqlForStores = "EXEC AppSchema.spStore_GetByProduct @ProductId = @ProductIdParam";
+                IEnumerable<StoreForFhowDto> stores =_dapper.FindAllWithParams<StoreForFhowDto>(sqlForStores, dynamicParams);
+                product.Stores = stores.ToList();             
             }
-            return productsForShow;
+            return products;
         }
 
         public ProductForShowDto GetProductBy(int productId){
             DynamicParameters dynamicParams = new DynamicParameters();
-            dynamicParams.Add("@ProductId", productId, DbType.Int32);
-            string sql = "SELECT * FROM AppSchema.Product WHERE ProductId = @ProductId";
-            Product product = _dapper.FindSingleWithParams<Product>(sql, dynamicParams);
+            dynamicParams.Add("@ProductIdParam", productId, DbType.Int32);
+            string sqlForProduct = "EXEC AppSchema.spProduct_Get @ProductId = @ProductIdParam";
+            ProductForShowDto product = _dapper.FindSingleWithParams<ProductForShowDto>(sqlForProduct, dynamicParams);
 
-            DynamicParameters dynamicParams2 = new DynamicParameters();
-            dynamicParams2.Add("@SubGroupId", product.SubGroupId, DbType.Int32);
-            string sqlForSubgroup = @"SELECT SubGroupName FROM AppSchema.SubGroup 
-                WHERE SubGroupId = @SubGroupId";
-            string subGroupName = _dapper.FindSingleWithParams<string>(sqlForSubgroup, dynamicParams2);
-
-            DynamicParameters dynamicParams3 = new DynamicParameters();
-            dynamicParams3.Add("@ProductId", product.ProductId, DbType.Int32);
-            string sqlForStoreProducts = @"SELECT * FROM AppSchema.StoreProduct 
-                WHERE ProductId = @ProductId";
-            IEnumerable<StoreProduct> storeProducts =_dapper.FindAllWithParams<StoreProduct>(sqlForStoreProducts, dynamicParams3);
+            string sqlForStores = "EXEC AppSchema.spStore_GetByProduct @ProductId = @ProductIdParam";
+            IEnumerable<StoreForFhowDto> stores =_dapper.FindAllWithParams<StoreForFhowDto>(sqlForStores, dynamicParams);
                 
-            List<Store> stores = new List<Store>();
-            foreach (StoreProduct storeProduct in storeProducts){
-                DynamicParameters dynamicParams4 = new DynamicParameters();
-                dynamicParams4.Add("@StoreId", storeProduct.StoreId, DbType.Int32);
-                string sqlForStores = "SELECT * FROM AppSchema.Store WHERE StoreId = @StoreId";
-                Store store = _dapper.FindSingleWithParams<Store>(sqlForStores, dynamicParams4);
-                stores.Add(store);
-            }
-            ProductForShowDto productForShow = _mapper.Map<ProductForShowDto>(product);
-            productForShow.SubGroupName = subGroupName;
-            productForShow.Stores = stores;
+            product.Stores = stores.ToList();
 
-            return productForShow;
+            return product;
         }
 
 
-        public string AddProduct(ProductToAddDto product) {
-            DynamicParameters dynamicParams = new DynamicParameters();
-            dynamicParams.Add("@ProductName", product.ProductName, DbType.String);
-            dynamicParams.Add("@Price", product.Price, DbType.Decimal);
-            dynamicParams.Add("@PriceVat", product.PriceVat, DbType.Decimal);
-            dynamicParams.Add("@Vat", product.Vat, DbType.Int32);
-            dynamicParams.Add("@SubGroupId", product.SubGroupId, DbType.Int32);
-
-            string sql = @"INSERT INTO AppSchema.Product 
-                (ProductName, ProductAdded, ProductEdited, Price, PriceVat, Vat, SubGroupId, Active)
-                VALUES (@ProductName, GETDATE(), GETDATE(), @Price, @PriceVat, @Vat, @SubGroupId, 1 )";
+        public ProductForShowDto AddProduct(ProductToAddDto product) {
+            ValidateCorrectPriceInput(product);
+            ValidateCorrectStoreIdInput(product);
+            DynamicParameters productParams = new DynamicParameters();
+            productParams.Add("@ProductName", product.ProductName, DbType.String);
+            productParams.Add("@Price", product.Price, DbType.Decimal);
+            productParams.Add("@PriceVat", product.PriceVat, DbType.Decimal);
+            productParams.Add("@Vat", product.Vat, DbType.Int32);
+            productParams.Add("@SubGroupId", product.SubGroupId, DbType.Int32);
+            productParams.Add("@OutputProductId", DbType.Int32, direction: ParameterDirection.Output);
             
-            _dapper.ExecuteWithParams(sql, dynamicParams);
-            int productId = _dapper.FindSingle<int>($"SELECT ProductId FROM AppSchema.Product WHERE ProductName = '{product.ProductName}'");
+            _dapper.ExecuteSpWithParams("AppSchema.spProduct_Add", productParams);
+            int productId = productParams.Get<int>("@OutputProductId");
 
             foreach(int storeId in product.StoreIds) {
-                DynamicParameters dynamicParams2 = new DynamicParameters();
-                dynamicParams2.Add("@StoreId", storeId, DbType.Int32);
-                dynamicParams2.Add("@ProductId", productId, DbType.Int32);
-                string sqlStoreProduct = @"INSERT INTO AppSchema.StoreProduct (StoreId, ProductId)
-                    VALUES (@StoreId, @ProductId)";
-                _dapper.ExecuteWithParams(sqlStoreProduct, dynamicParams2);
+                DynamicParameters storeParams = new DynamicParameters();
+                storeParams.Add("@StoreId", storeId, DbType.Int32);
+                storeParams.Add("@ProductId", productId, DbType.Int32);
+                _dapper.ExecuteSpWithParams("AppSchema.spStoreProduct_Add", storeParams);
             }
-            return "all good";
 
+            return GetProductBy(productId);
+        }
+
+        private void ValidateCorrectPriceInput(ProductToAddDto product) {
+            if(product.Price == 0 && product.PriceVat > 0 && product.Vat > 0) {
+                product.Price =  product.PriceVat / (1 + ((decimal)product.Vat / 100));
+            } else if (product.PriceVat == 0 && product.Price > 0 && product.Vat > 0) {
+                product.PriceVat = product.Price * (1 + ((decimal)product.Vat / 100));
+            } else if (product.Vat == 0 && product.Price > 0 && product.PriceVat > 0){
+                product.Vat = Decimal.ToInt32((product.PriceVat - product.Price) * 100 / product.Price);
+            } else if(product.Vat > 0 && product.Price > 0 && product.PriceVat > 0){
+                return;
+            } else {
+                throw new Exception("Please provide atleat 2 values: Price, PriceVat, Vat");
+            }
+        }
+
+        private void ValidateCorrectStoreIdInput(ProductToAddDto product) {
+            IEnumerable<int> stores = _dapper.FindAll<int>("SELECT StoreId FROM AppSchema.Store");
+            foreach(int storeId in product.StoreIds) {
+                if(!stores.Contains(storeId)) {
+                    throw new Exception("Please enter a valid store Id.");
+                }
+            }
         }
     }
 }

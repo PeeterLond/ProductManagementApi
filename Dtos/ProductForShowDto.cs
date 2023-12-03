@@ -13,6 +13,6 @@ namespace ProductManagementApi.Dtos {
         public int Vat { get; set; }
         public string SubGroupName { get; set; } = string.Empty;
         public bool Active { get; set; }
-        public List<Store> Stores { get; set; } = new List<Store>();
+        public List<StoreForFhowDto> Stores { get; set; } = new List<StoreForFhowDto>();
     }
 }
