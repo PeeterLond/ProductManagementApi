@@ -1,5 +1,5 @@
 # ProductManagementApi
-A product management Api made for a work trial. You can view and add products inside the database. 
+A product management Api made for a work trial. You can view, add, edit and delete products inside the database and see the store and groups related to the products. 
 
 ## How to run this server:
 1) Clone or download project to preferred location on your computer.
