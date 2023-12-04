@@ -33,9 +33,9 @@ namespace ProductManagementApi.Context {
             return connection.QuerySingle<T>(sql);
         }
 
-        public int ExecuteWithParams(string sql, DynamicParameters param) {
+        public int Execute(string sql) {
             IDbConnection connection = GetConnection();
-            return connection.Execute(sql, param);
+            return connection.Execute(sql);
         }
 
         public int ExecuteSpWithParams(string storedProcedure, DynamicParameters parameters) {

@@ -19,8 +19,12 @@ namespace ProductManagementApi.Controller {
         [SwaggerOperation(
             Summary = "Get all available product groups and their subgroups."
         )]
-        public IEnumerable<GroupForShowDto> GetGroups() {
-            return _groupService.GetAllGroups();
+        public IActionResult GetAllGroups() {
+            try {
+                return Ok(_groupService.GetAllGroups());
+            } catch (Exception) {
+                return StatusCode(404, "No groups in database");
+            } 
         }
     }
 }

@@ -61,7 +61,7 @@ BEGIN
 		FROM AppSchema.Product AS product
 		JOIN AppSchema.SubGroup AS subGroup ON
 		product.SubGroupId = subGroup.SubGroupId
-		WHERE product.ProductId = ISNULL(@ProductId, product.ProductId)
+		WHERE product.ProductId = ISNULL(@ProductId, product.ProductId) AND product.Active = 1
 END
 GO
 
@@ -101,6 +101,47 @@ BEGIN
 END
 GO
 
+CREATE PROCEDURE AppSchema.spProduct_Edit
+@ProductId INT,
+@ProductName NVARCHAR(255),
+@Price DECIMAL(5,2),
+@PriceVat DECIMAL(5,2),
+@Vat INT,
+@SubGroupId INT
+AS
+BEGIN
+	UPDATE AppSchema.Product
+		SET ProductName = @ProductName, 
+		ProductEdited = GETDATE(),
+		Price = @Price,
+		PriceVat = @PriceVat,
+		Vat = @Vat,
+		SubGroupId = @SubGroupId,
+		Active = 1
+	WHERE ProductId = @ProductId
+END
+GO
+
+CREATE PROCEDURE AppSchema.spStoreProduct_Delete
+@StoreProductId INT
+AS
+BEGIN
+	DELETE FROM AppSchema.StoreProduct
+	WHERE ProductId = @StoreProductId;
+END
+GO
+
+CREATE PROCEDURE AppSchema.spProduct_Delete
+@ProductId INT
+AS
+BEGIN
+	UPDATE AppSchema.Product
+		SET Active = 0, ProductEdited = GETDATE()
+		WHERE ProductId = @ProductId;
+	EXEC AppSchema.spStoreProduct_Delete @StoreProductId = @ProductId
+END
+GO
+
 CREATE PROCEDURE AppSchema.spStoreProduct_Add
 @StoreId INT,
 @ProductId INT
@@ -108,5 +149,29 @@ AS
 BEGIN
 	INSERT INTO AppSchema.StoreProduct
 		VALUES (@StoreId, @ProductId, 0)
+END
+GO
+
+CREATE PROCEDURE AppSchema.spStoreProduct_Patch
+@StoreId INT,
+@ProductId INT,
+@ProductAmount INT
+AS
+BEGIN
+	UPDATE AppSchema.StoreProduct
+		SET ProductAmount = @ProductAmount + (
+			SELECT ProductAmount FROM AppSchema.StoreProduct
+			WHERE StoreId = @StoreId AND ProductId = @ProductId)
+		WHERE StoreId = @StoreId AND ProductId = @ProductId
+END
+GO
+
+CREATE PROCEDURE AppSchema.spStoreProduct_Get
+@StoreId INT,
+@ProductId INT
+AS
+BEGIN
+	SELECT * FROM AppSchema.StoreProduct
+	WHERE StoreId = @StoreId AND ProductId = @ProductId
 END
 GO

@@ -42,7 +42,6 @@ namespace ProductManagementApi.Service {
             return product;
         }
 
-
         public ProductForShowDto AddProduct(ProductToAddDto product) {
             ValidateCorrectPriceInput(product);
             ValidateCorrectStoreIdInput(product);
@@ -57,14 +56,36 @@ namespace ProductManagementApi.Service {
             _dapper.ExecuteSpWithParams("AppSchema.spProduct_Add", productParams);
             int productId = productParams.Get<int>("@OutputProductId");
 
-            foreach(int storeId in product.StoreIds) {
-                DynamicParameters storeParams = new DynamicParameters();
-                storeParams.Add("@StoreId", storeId, DbType.Int32);
-                storeParams.Add("@ProductId", productId, DbType.Int32);
-                _dapper.ExecuteSpWithParams("AppSchema.spStoreProduct_Add", storeParams);
-            }
+            AddStoreProducts(productId, product.StoreIds);
 
             return GetProductBy(productId);
+        }
+
+        public ProductForShowDto EditProduct(ProductToAddDto product, int productId) {
+            ValidateCorrectPriceInput(product);
+            ValidateCorrectStoreIdInput(product);
+            DynamicParameters productParams = new DynamicParameters();
+            productParams.Add("ProductId", productId, DbType.Int32);
+            productParams.Add("@ProductName", product.ProductName, DbType.String);
+            productParams.Add("@Price", product.Price, DbType.Decimal);
+            productParams.Add("@PriceVat", product.PriceVat, DbType.Decimal);
+            productParams.Add("@Vat", product.Vat, DbType.Int32);
+            productParams.Add("@SubGroupId", product.SubGroupId, DbType.Int32);
+
+            _dapper.ExecuteSpWithParams("AppSchema.spProduct_Edit", productParams);
+            DynamicParameters deleteParams = new DynamicParameters();
+            deleteParams.Add("@StoreProductId", productId, DbType.Int32);
+            _dapper.ExecuteSpWithParams("AppSchema.spStoreProduct_Delete", deleteParams);
+
+            AddStoreProducts(productId, product.StoreIds);
+
+            return GetProductBy(productId);
+        }
+
+        public bool DeleteProduct(int productId) {
+            DynamicParameters productParams = new DynamicParameters();
+            productParams.Add("@ProductId", productId, DbType.Int32);
+            return _dapper.ExecuteSpWithParams("AppSchema.spProduct_Delete", productParams) > 0;
         }
 
         private void ValidateCorrectPriceInput(ProductToAddDto product) {
@@ -87,6 +108,15 @@ namespace ProductManagementApi.Service {
                 if(!stores.Contains(storeId)) {
                     throw new Exception("Please enter a valid store Id.");
                 }
+            }
+        }
+
+        private void AddStoreProducts(int productId, List<int> storeIds) {
+            foreach(int storeId in storeIds) {
+                DynamicParameters storeParams = new DynamicParameters();
+                storeParams.Add("@StoreId", storeId, DbType.Int32);
+                storeParams.Add("@ProductId", productId, DbType.Int32);
+                _dapper.ExecuteSpWithParams("AppSchema.spStoreProduct_Add", storeParams);
             }
         }
     }
